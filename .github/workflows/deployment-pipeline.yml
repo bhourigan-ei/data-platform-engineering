@@ -5,19 +5,20 @@ name: Deployment Pipeline
 
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [development, main]
     types: [closed]
   push:
     tags: ['v*']
 
 env:
-  DBX_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-  DBX_HOST: ${{ secrets.DATABRICKS_HOST }}
-  SERVICE_PRINCIPAL_KEY: ${{ secrets.SERVICE_PRINCIPAL_KEY }}
+  DATABRICKS_AAD_TOKEN: ${{ secrets.DATABRICKS_SP_TOKEN }}
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
 
 jobs:
   deploy-to-development:
-    if: github.event.pull_request.merged == true && github.base_ref == 'dev'
+    if: github.event.pull_request.merged == true && github.base_ref == 'development'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -27,9 +28,19 @@ jobs:
         with:
           python-version: '3.9'
           
-      - name: Deploy to Shared Dev
+      - name: Configure Databricks CLI
         run: |
-          pip install databricks-cli dbx
+          pip install databricks-cli
+          echo "[DEFAULT]" > ~/.databrickscfg
+          echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databrickscfg
+          echo "auth_type = service-principal" >> ~/.databrickscfg
+          echo "client_id = ${{ secrets.DATABRICKS_CLIENT_ID }}" >> ~/.databrickscfg
+          echo "tenant_id = ${{ secrets.DATABRICKS_TENANT_ID }}" >> ~/.databrickscfg
+          echo "token = ${{ secrets.DATABRICKS_SP_TOKEN }}" >> ~/.databrickscfg
+            
+      - name: Deploy to Shared Development
+        run: |
+          pip install dbx
           dbx bundle deploy \
             --target-env development \
             --files-only \
@@ -58,9 +69,24 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Configure Databricks CLI
+        run: |
+          pip install databricks-cli
+          echo "[DEFAULT]" > ~/.databrickscfg
+          echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databrickscfg
+          echo "auth_type = service-principal" >> ~/.databrickscfg
+          echo "client_id = ${{ secrets.DATABRICKS_CLIENT_ID }}" >> ~/.databrickscfg
+          echo "tenant_id = ${{ secrets.DATABRICKS_TENANT_ID }}" >> ~/.databrickscfg
+          echo "token = ${{ secrets.DATABRICKS_SP_TOKEN }}" >> ~/.databrickscfg
+      
       - name: Deploy to Pre-Release
         run: |
-          pip install databricks-cli dbx
+          pip install dbx
           dbx bundle deploy \
             --target-env pre-release \
             --files-only \

@@ -7,10 +7,7 @@ targets:
   development:
     workspace:
       host: ${DATABRICKS_HOST}
-      auth_type: service-principal
-      client_id: ${DATABRICKS_CLIENT_ID}
-      tenant_id: ${DATABRICKS_TENANT_ID}
-      token: ${DATABRICKS_AAD_TOKEN}
+      token: ${DATABRICKS_TOKEN}
     jobs:
       integration-tests:
         name: integration-test-suite
@@ -24,10 +21,7 @@ targets:
   pre-release:
     workspace:
       host: ${DATABRICKS_HOST}
-      auth_type: service-principal
-      client_id: ${DATABRICKS_CLIENT_ID}
-      tenant_id: ${DATABRICKS_TENANT_ID}
-      token: ${DATABRICKS_AAD_TOKEN}
+      token: ${DATABRICKS_TOKEN}
     jobs:
       regression-suite:
         name: regression-test-suite
@@ -35,11 +29,19 @@ targets:
           - task_key: run_tests
             notebook_task:
               notebook_path: /Shared/tests/regression/main
+              base_parameters:
+                env: "pre-release"
 
   production:
     workspace:
       host: ${DATABRICKS_HOST}
-      auth_type: service-principal
-      client_id: ${DATABRICKS_CLIENT_ID}
-      tenant_id: ${DATABRICKS_TENANT_ID}
-      token: ${DATABRICKS_AAD_TOKEN}
+      token: ${DATABRICKS_TOKEN}
+    jobs:
+      deployment:
+        name: production-deployment
+        tasks:
+          - task_key: deploy
+            notebook_task:
+              notebook_path: /Shared/deployment/main
+              base_parameters:
+                env: "production"

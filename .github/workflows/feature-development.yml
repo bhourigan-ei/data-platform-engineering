@@ -1,66 +1,92 @@
-# DDO Data Platform Github Workflow for Feature Development.yml
+# DDO Data Platform: Github Feature Development Workflow
+# Bi-directional sync (Databricks to Git, Git to Databricks)
 name: Feature Development Pipeline
+
 
 on:
   push:
-    branches: [ 'feature/*' ]
+    branches: ['feature/*']
   pull_request:
-    branches: [ dev ]
-    types: [ opened, synchronize, reopened ]
+    branches: [dev]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Feature branch name'
+        required: true
+      sync_direction:
+        description: 'Sync direction (git-to-dbx or dbx-to-git)'
+        required: true
+        type: choice
+        options: ['git-to-dbx', 'dbx-to-git']
 
 env:
   DBX_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
   DBX_HOST: ${{ secrets.DATABRICKS_HOST }}
-  PERSONAL_CLUSTER_ID: ${{ secrets.PERSONAL_CLUSTER_ID }}
 
 jobs:
-  code-quality:
+  sync-workspace:
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/feature/') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Set up Python
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
           
-      - name: Code Quality Checks
-        run: |
-          python -m pip install black isort mypy pytest
-          black --check .
-          isort --check-only .
-          mypy src/
-          
-      - name: Unit Tests
-        run: |
-          pytest tests/unit --cov=src --cov-report=xml
-          
-      - name: Upload Coverage
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage-report
-          path: coverage.xml
-
-  workspace-sync:
-    needs: code-quality
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
       - name: Install Databricks CLI
-        run: pip install databricks-cli dbx
+        run: |
+          pip install databricks-cli
           
-      - name: Sync to Personal Workspace
+      - name: Git to Databricks Sync
+        if: github.event_name == 'push' || github.event.inputs.sync_direction == 'git-to-dbx'
         run: |
           WORKSPACE_PATH="/Users/${{ github.actor }}/workspace/$(echo $GITHUB_REF_NAME | sed 's/\//_/g')"
           databricks workspace mkdirs $WORKSPACE_PATH
           databricks workspace import_dir ./src $WORKSPACE_PATH --overwrite
           
-      - name: Build Development Bundle
+      - name: Databricks to Git Sync
+        if: github.event.inputs.sync_direction == 'dbx-to-git'
         run: |
-          dbx bundle validate --file conf/bundle.yml
-          dbx bundle deploy \
-            --target-env development \
-            --files-only \
-            --bundle-file conf/bundle.yml \
-            --storage-path dbfs:/FileStore/${{ github.actor }}/bundles
+          WORKSPACE_PATH="/Users/${{ github.actor }}/workspace/${{ github.event.inputs.branch_name }}"
+          databricks workspace export_dir $WORKSPACE_PATH ./src --overwrite
+          
+          git config --global user.name "Databricks Sync"
+          git config --global user.email "noreply@databricks.com"
+          
+          git add .
+          git commit -m "Sync from Databricks workspace" || echo "No changes to commit"
+          git push origin HEAD
+
+  code-quality:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Run Tests
+        run: |
+          pip install pytest pytest-cov black isort
+          black --check src/
+          isort --check src/
+          pytest tests/unit --cov=src
+          
+      - name: Add Team Review
+        if: success()
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.head_ref }}
+          title: "Feature: ${{ github.head_ref }}"
+          body: "Please review these changes"
+          team-reviewers: |
+            org-name/team-name

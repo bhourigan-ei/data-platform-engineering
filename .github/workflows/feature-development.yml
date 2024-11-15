@@ -1,14 +1,17 @@
 # DDO Data Platform: Github Feature Development Workflow
 # Bi-directional sync (Databricks to Git, Git to Databricks)
+
 name: Feature Development Pipeline
 
-
 on:
+  # Trigger on push to feature branches
   push:
     branches: ['feature/*']
+  # Trigger on PR to dev branch
   pull_request:
-    branches: [dev]
+    branches: [development]
     types: [opened, synchronize, reopened]
+  # Trigger on workflow_dispatch for manual sync from Databricks
   workflow_dispatch:
     inputs:
       branch_name:
@@ -38,9 +41,11 @@ jobs:
         with:
           python-version: '3.9'
           
-      - name: Install Databricks CLI
+      - name: Install and Configure Databricks CLI  # Only change is here
         run: |
           pip install databricks-cli
+          echo "databricks_host ${{ secrets.DATABRICKS_HOST }}" >> ~/.databrickscfg
+          echo "databricks_token ${{ secrets.DATABRICKS_TOKEN }}" >> ~/.databrickscfg
           
       - name: Git to Databricks Sync
         if: github.event_name == 'push' || github.event.inputs.sync_direction == 'git-to-dbx'

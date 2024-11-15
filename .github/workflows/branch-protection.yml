@@ -1,52 +1,37 @@
 # DDO Data Platform: Github Branch Protection
 # ATTENTION: Changing this is NOT RECOMMENDED as it can have unintended consequences. 
 
-name: Configure Branch Protection
+name: Branch Protection
 
 on:
   workflow_dispatch:
 
 jobs:
-  configure-protection:
+  protect-branches:
     runs-on: ubuntu-latest
     steps:
-      - name: Display Context
-        uses: actions/github-script@v7
+      - uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ADMIN_TOKEN }}
           script: |
-            console.log('Repository context:', {
-              owner: context.repo.owner,
-              repo: context.repo.name,
-              ref: context.ref
-            });
-
-      - name: Configure Branch Protection
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.ADMIN_TOKEN }}
-          script: |
-            const repository = context.repo.owner + '/' + context.repo.name;
-            console.log('Configuring protection for repository:', repository);
+            console.log('Repository:', process.env.GITHUB_REPOSITORY);
+            
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
             
             for (const branch of ['main', 'development']) {
-              console.log(`Setting up protection for ${branch}`);
-              try {
-                const response = await github.request(
-                  `PUT /repos/${repository}/branches/${branch}/protection`,
-                  {
-                    required_status_checks: null,
-                    enforce_admins: false,
-                    required_pull_request_reviews: {
-                      required_approving_review_count: 1,
-                      dismiss_stale_reviews: true
-                    },
-                    restrictions: null
-                  }
-                );
-                console.log(`Protection configured for ${branch}:`, response.status);
-              } catch (error) {
-                console.error(`Error for ${branch}:`, error.message);
-                throw error;
-              }
+              await github.request(
+                'PUT /repos/{owner}/{repo}/branches/{branch}/protection',
+                {
+                  owner,
+                  repo,
+                  branch,
+                  required_status_checks: null,
+                  enforce_admins: false,
+                  required_pull_request_reviews: {
+                    required_approving_review_count: 1,
+                    dismiss_stale_reviews: true
+                  },
+                  restrictions: null
+                }
+              );
             }

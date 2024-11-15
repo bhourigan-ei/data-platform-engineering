@@ -1,6 +1,6 @@
 # conf/bundle.yml
 bundle:
-  name: your-project
+  name: data-platform-engineering
   version: 1.0.0
 
 targets:

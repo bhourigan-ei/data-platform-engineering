@@ -1,18 +1,14 @@
 # DDO Data Platform: Github Feature Development Workflow
 # Bi-directional sync (Databricks to Git, Git to Databricks)
 
-# .github/workflows/feature-development.yml
 name: Feature Development Pipeline
 
 on:
-  # Trigger on push to feature branches
   push:
     branches: ['feature/*']
-  # Trigger on PR to dev branch
   pull_request:
     branches: [development]
     types: [opened, synchronize, reopened]
-  # Trigger on workflow_dispatch for manual sync from Databricks
   workflow_dispatch:
     inputs:
       branch_name:
@@ -25,8 +21,10 @@ on:
         options: ['git-to-dbx', 'dbx-to-git']
 
 env:
-  DBX_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-  DBX_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_AAD_TOKEN: ${{ secrets.DATABRICKS_SP_TOKEN }}
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
 
 jobs:
   sync-workspace:
@@ -47,12 +45,21 @@ jobs:
           pip install databricks-cli
           echo "[DEFAULT]" > ~/.databrickscfg
           echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databrickscfg
-          echo "token = ${{ secrets.DATABRICKS_TOKEN }}" >> ~/.databrickscfg
+          echo "auth_type = service-principal" >> ~/.databrickscfg
+          echo "client_id = ${{ secrets.DATABRICKS_CLIENT_ID }}" >> ~/.databrickscfg
+          echo "tenant_id = ${{ secrets.DATABRICKS_TENANT_ID }}" >> ~/.databrickscfg
+          echo "token = ${{ secrets.DATABRICKS_SP_TOKEN }}" >> ~/.databrickscfg
+          
+      - name: Verify SP Authentication
+        run: |
+          echo "Testing Databricks connection..."
+          databricks workspace ls /Shared || exit 1
+          echo "Service Principal authentication successful!"
           
       - name: Git to Databricks Sync
         if: github.event_name == 'push' || github.event.inputs.sync_direction == 'git-to-dbx'
         run: |
-          WORKSPACE_PATH="/Users/${{ github.actor }}/workspace/$(echo $GITHUB_REF_NAME | sed 's/\//_/g')"
+          WORKSPACE_PATH="/Shared/feature-branches/$(echo $GITHUB_REF_NAME | sed 's/\//_/g')"
           echo "Syncing to workspace path: $WORKSPACE_PATH"
           databricks workspace mkdirs $WORKSPACE_PATH
           databricks workspace import_dir ./src $WORKSPACE_PATH --overwrite
@@ -60,7 +67,7 @@ jobs:
       - name: Databricks to Git Sync
         if: github.event.inputs.sync_direction == 'dbx-to-git'
         run: |
-          WORKSPACE_PATH="/Users/${{ github.actor }}/workspace/${{ github.event.inputs.branch_name }}"
+          WORKSPACE_PATH="/Shared/feature-branches/${{ github.event.inputs.branch_name }}"
           echo "Exporting from workspace path: $WORKSPACE_PATH"
           databricks workspace export_dir $WORKSPACE_PATH ./src --overwrite
           

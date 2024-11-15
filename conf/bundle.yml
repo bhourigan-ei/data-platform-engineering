@@ -1,1 +1,47 @@
-# DDO Databricks Data Platform Template
+# conf/bundle.yml
+bundle:
+  name: data-platform-engineering
+  version: 1.0.0
+
+targets:
+  development:
+    workspace:
+      host: ${DATABRICKS_HOST}
+      token: ${DATABRICKS_TOKEN}
+    jobs:
+      integration-tests:
+        name: integration-test-suite
+        tasks:
+          - task_key: run_integration
+            notebook_task:
+              notebook_path: /Shared/tests/integration/main
+              base_parameters:
+                env: "development"
+
+  pre-release:
+    workspace:
+      host: ${DATABRICKS_HOST}
+      token: ${DATABRICKS_TOKEN}
+    jobs:
+      regression-suite:
+        name: regression-test-suite
+        tasks:
+          - task_key: run_tests
+            notebook_task:
+              notebook_path: /Shared/tests/regression/main
+              base_parameters:
+                env: "pre-release"
+
+  production:
+    workspace:
+      host: ${DATABRICKS_HOST}
+      token: ${DATABRICKS_TOKEN}
+    jobs:
+      deployment:
+        name: production-deployment
+        tasks:
+          - task_key: deploy
+            notebook_task:
+              notebook_path: /Shared/deployment/main
+              base_parameters:
+                env: "production"

@@ -7,9 +7,21 @@
 
 ## Configure branch protection
 
+ 1. Create GitHub repository secret ADMIN_TOKEN
+ 2. Generate a Personal Access Token with 'repo' permissions
+ 3. Add it to repository secrets
+ 4. Run workflow:
+ - Go to Actions tab
+ - Select "Configure Branch Protection" workflow
+ - Click "Run workflow"
+ - Select branch main
+ - Click "Run workflow"
 
-## Configure Secrets
+ 5. Verify:
+ - Go to Settings > Branches
+ - Check protection rules for main and dev
 
+## Configure Databricks Secrets
 
 Add your GitHub repository:
 ```

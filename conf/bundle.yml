@@ -1,1 +1,45 @@
-# DDO Databricks Data Platform Template
+# conf/bundle.yml
+bundle:
+  name: your-project
+  version: 1.0.0
+
+targets:
+  development:
+    workspace:
+      host: ${DATABRICKS_HOST}
+      auth_type: service-principal
+      client_id: ${DATABRICKS_CLIENT_ID}
+      tenant_id: ${DATABRICKS_TENANT_ID}
+      token: ${DATABRICKS_AAD_TOKEN}
+    jobs:
+      integration-tests:
+        name: integration-test-suite
+        tasks:
+          - task_key: run_integration
+            notebook_task:
+              notebook_path: /Shared/tests/integration/main
+              base_parameters:
+                env: "development"
+
+  pre-release:
+    workspace:
+      host: ${DATABRICKS_HOST}
+      auth_type: service-principal
+      client_id: ${DATABRICKS_CLIENT_ID}
+      tenant_id: ${DATABRICKS_TENANT_ID}
+      token: ${DATABRICKS_AAD_TOKEN}
+    jobs:
+      regression-suite:
+        name: regression-test-suite
+        tasks:
+          - task_key: run_tests
+            notebook_task:
+              notebook_path: /Shared/tests/regression/main
+
+  production:
+    workspace:
+      host: ${DATABRICKS_HOST}
+      auth_type: service-principal
+      client_id: ${DATABRICKS_CLIENT_ID}
+      tenant_id: ${DATABRICKS_TENANT_ID}
+      token: ${DATABRICKS_AAD_TOKEN}

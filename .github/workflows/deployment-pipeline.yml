@@ -1,5 +1,3 @@
-# DDO Data Platform: Github Deployment Pipeline Workflow
-
 # .github/workflows/deployment-pipeline.yml
 name: Deployment Pipeline
 
@@ -11,10 +9,8 @@ on:
     tags: ['v*']
 
 env:
-  DATABRICKS_AAD_TOKEN: ${{ secrets.DATABRICKS_SP_TOKEN }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_SP_TOKEN }}
   DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-  DATABRICKS_TENANT_ID: ${{ secrets.DATABRICKS_TENANT_ID }}
 
 jobs:
   deploy-to-development:
@@ -33,9 +29,6 @@ jobs:
           pip install databricks-cli
           echo "[DEFAULT]" > ~/.databrickscfg
           echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databrickscfg
-          echo "auth_type = service-principal" >> ~/.databrickscfg
-          echo "client_id = ${{ secrets.DATABRICKS_CLIENT_ID }}" >> ~/.databrickscfg
-          echo "tenant_id = ${{ secrets.DATABRICKS_TENANT_ID }}" >> ~/.databrickscfg
           echo "token = ${{ secrets.DATABRICKS_SP_TOKEN }}" >> ~/.databrickscfg
             
       - name: Deploy to Shared Development
@@ -79,9 +72,6 @@ jobs:
           pip install databricks-cli
           echo "[DEFAULT]" > ~/.databrickscfg
           echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databrickscfg
-          echo "auth_type = service-principal" >> ~/.databrickscfg
-          echo "client_id = ${{ secrets.DATABRICKS_CLIENT_ID }}" >> ~/.databrickscfg
-          echo "tenant_id = ${{ secrets.DATABRICKS_TENANT_ID }}" >> ~/.databrickscfg
           echo "token = ${{ secrets.DATABRICKS_SP_TOKEN }}" >> ~/.databrickscfg
       
       - name: Deploy to Pre-Release

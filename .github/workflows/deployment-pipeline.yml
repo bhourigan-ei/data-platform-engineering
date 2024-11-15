@@ -1,0 +1,104 @@
+# DDO Data Platform: Github Deployment Pipeline Workflow
+
+# .github/workflows/deployment-pipeline.yml
+name: Deployment Pipeline
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [closed]
+  push:
+    tags: ['v*']
+
+env:
+  DBX_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  DBX_HOST: ${{ secrets.DATABRICKS_HOST }}
+  SERVICE_PRINCIPAL_KEY: ${{ secrets.SERVICE_PRINCIPAL_KEY }}
+
+jobs:
+  deploy-to-development:
+    if: github.event.pull_request.merged == true && github.base_ref == 'dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Deploy to Shared Dev
+        run: |
+          pip install databricks-cli dbx
+          dbx bundle deploy \
+            --target-env development \
+            --files-only \
+            --bundle-file conf/bundle.yml
+            
+      - name: Run Integration Tests
+        id: integration
+        run: |
+          dbx bundle run \
+            --target-env development \
+            --job=integration-tests
+            
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          git reset --hard HEAD^
+          dbx bundle deploy \
+            --target-env development \
+            --files-only \
+            --bundle-file conf/bundle.yml
+
+  deploy-to-production:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to Pre-Release
+        run: |
+          pip install databricks-cli dbx
+          dbx bundle deploy \
+            --target-env pre-release \
+            --files-only \
+            --bundle-file conf/bundle.yml
+            
+      - name: Run Regression Tests
+        id: regression
+        run: |
+          dbx bundle run \
+            --target-env pre-release \
+            --job=regression-tests
+            
+      - name: Create PR to Main
+        if: success()
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/${{ github.ref_name }}
+          base: main
+          title: 'Release ${{ github.ref_name }}'
+          team-reviewers: |
+            org-name/team-name
+            
+      - name: Deploy to Production
+        if: github.event.pull_request.merged == true && github.base_ref == 'main'
+        run: |
+          dbx bundle deploy \
+            --target-env production \
+            --files-only \
+            --bundle-file conf/bundle.yml
+            
+      - name: Rollback Pre-Release on Failure
+        if: failure()
+        run: |
+          git fetch --tags
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^)
+          dbx bundle deploy \
+            --target-env pre-release \
+            --files-only \
+            --bundle-file conf/bundle.yml \
+            --tag $LAST_TAG

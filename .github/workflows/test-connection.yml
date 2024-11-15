@@ -1,0 +1,22 @@
+# DDO Data Platform: Test Databricks Connection
+name: Test Databricks Connection
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  test-connection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Databricks CLI
+        run: |
+          pip install databricks-cli
+          
+      - name: Test Connection
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          echo "Testing connection to Databricks..."
+          databricks workspace ls /
+          echo "Connection test complete!"

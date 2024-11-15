@@ -28,11 +28,11 @@ jobs:
               allow_deletions: false
             });
             
-            // Protect dev branch
+            // Protect development branch
             await github.rest.repos.updateBranchProtection({
               owner: context.repo.owner,
               repo: context.repo.name,
-              branch: 'dev',
+              branch: 'development',
               enforce_admins: false,
               required_pull_request_reviews: {
                 required_approving_review_count: 1
